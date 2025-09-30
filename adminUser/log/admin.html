@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勤怠管理 - 管理者パネル</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif, 'Noto Sans JP', sans-serif; }
+        .page, .admin-page { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .table-auto th, .table-auto td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app-container">
+        <div id="login-page" class="page flex items-center justify-center min-h-screen">
+            <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+                <div class="text-center">
+                    <i class="fa-solid fa-user-shield text-5xl text-blue-600"></i>
+                    <h1 class="mt-4 text-3xl font-bold text-gray-900">管理者パネル</h1>
+                    <p class="mt-2 text-sm text-gray-600">管理者アカウントでログインしてください</p>
+                </div>
+                <form id="login-form" class="space-y-6">
+                    <input type="text" id="username" placeholder="管理者ID" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
+                    <input type="password" id="password" placeholder="パスワード" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
+                    <button type="submit" class="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">ログイン</button>
+                    <p id="login-error" class="text-red-500 text-sm text-center !mt-2 hidden"></p>
+                </form>
+                <div class="mt-6 text-center">
+                    <a href="#" id="show-register-page-link" class="text-sm text-blue-600 hover:underline">最初の管理者を登録</a>
+                </div>
+            </div>
+        </div>
+        <div id="register-first-admin-page" class="page hidden flex items-center justify-center min-h-screen">
+             </div>
+        <div id="admin-main-interface" class="page hidden">
+             </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // ★★★★★★★★★★★★★★★★★★★★★★★★
+        // API_BASE_URL の末尾のコロンを削除しました
+        // ★★★★★★★★★★★★★★★★★★★★★★★★
+        const API_BASE_URL = 'https://punch.edps.uk';
+        let adminUser = null;
+
+        const showPage = (pageId) => {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            document.getElementById(pageId)?.classList.remove('hidden');
+        };
+
+        const api = async (endpoint, method = 'GET', body = null) => {
+            try {
+                const options = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) options.body = JSON.stringify(body);
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || `HTTP Error: ${response.status}`);
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                // ログイン失敗時などにアラートが出ないように調整
+                return { status: 'error', message: error.message };
+            }
+        };
+
+        // ★★★★★★★★★★★★★★★★★★★★★★★★
+        // 欠落していたログイン処理を復活させました
+        // ★★★★★★★★★★★★★★★★★★★★★★★★
+        document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginError = document.getElementById('login-error');
+            loginError.classList.add('hidden');
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const response = await api('/api/login', 'POST', { username, password });
+
+            if (response && response.status === 'success' && response.user.isAdmin) {
+                adminUser = response.user;
+                showPage('admin-main-interface');
+                // You can add logic here to show the dashboard content by default
+                // showAdminContent('admin-dashboard-page');
+            } else {
+                loginError.textContent = response.message || 'ID/パスワードが違うか管理者権限がありません。';
+                loginError.classList.remove('hidden');
+            }
+        });
+
+        // First Admin Registration Logic (remains unchanged)
+        document.getElementById('show-register-page-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            showPage('register-first-admin-page');
+        });
+        
+        document.getElementById('back-to-login-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            showPage('login-page');
+        });
+        
+        document.getElementById('first-admin-register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusEl = document.getElementById('first-admin-register-status');
+            statusEl.textContent = '登録処理中...';
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const response = await api('/api/register-first-admin', 'POST', data);
+
+            if (response && response.status === 'success') {
+                statusEl.textContent = '登録成功！ログイン画面に移動します。';
+                setTimeout(() => { showPage('login-page'); statusEl.textContent = ''; }, 2000);
+            } else {
+                statusEl.textContent = `エラー: ${response.message}`;
+            }
+        });
+        
+        showPage('login-page');
+    });
+    </script>
+</body>
+</html>

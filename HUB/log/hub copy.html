@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勤怠管理ハブ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        .hub-action-btn { padding: 1rem; border-radius: 0.75rem; font-size: 1rem; line-height: 1.2; font-weight: bold; color: white; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .hub-action-btn:active { transform: scale(0.95); }
+        .reg-input { width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; background-color: #4A5568; border: 1px solid #718096; color: white; }
+    </style>
+</head>
+<body class="bg-gray-800 text-white">
+    <div id="app-container">
+        <!-- HUB MAIN PAGE -->
+        <div id="hub-main-page" class="page flex flex-col items-center justify-center min-h-screen p-4">
+            <h1 class="text-4xl font-bold mb-2">勤怠打刻ハブ</h1>
+            <p class="text-gray-300 mb-6">アクションを選択後、QRをスキャンしてください。</p>
+            <div id="qr-reader" class="w-full max-w-sm h-64 bg-gray-700 rounded-lg mb-4 border-2 border-dashed border-gray-500"></div>
+            <p id="hub-status" class="text-yellow-400 mb-4 h-6 text-center font-semibold">カメラを準備中...</p>
+            <div class="w-full max-w-lg grid grid-cols-4 gap-3 text-center">
+                <button class="hub-action-btn bg-green-500" data-action="出勤">出勤</button>
+                <button class="hub-action-btn bg-red-500" data-action="退勤">退勤</button>
+                <button class="hub-action-btn bg-purple-500" data-action="残業">残業</button>
+                <button class="hub-action-btn bg-yellow-600" data-action="遅刻">遅刻</button>
+                <button class="hub-action-btn bg-blue-500" data-action="休憩開始">休憩</button>
+                <button class="hub-action-btn bg-teal-500" data-action="外出">外出</button>
+                <button class="hub-action-btn bg-cyan-500" data-action="休憩終了">戻り</button>
+                <div class="bg-gray-700 p-2 rounded-lg flex items-center justify-center">
+                    <button data-target="hub-register-page" class="nav-btn text-white underline">新規登録</button>
+                </div>
+            </div>
+        </div>
+        <!-- HUB REGISTER PAGE -->
+        <div id="hub-register-page" class="page hidden flex flex-col items-center justify-center min-h-screen p-6">
+             <button data-target="hub-main-page" class="nav-btn absolute top-6 left-6 text-white text-2xl"><i class="fas fa-arrow-left"></i></button>
+             <h1 class="text-3xl font-bold mb-6">新規ユーザー登録</h1>
+             <form id="register-form" class="w-full max-w-sm space-y-4">
+                 <input type="text" id="reg-fullname" placeholder="氏名" class="reg-input" required>
+                 <input type="text" id="reg-userid" placeholder="ユーザーID" class="reg-input" required>
+                 <input type="email" id="reg-email" placeholder="メールアドレス" class="reg-input" required>
+                 <input type="password" id="reg-password" placeholder="パスワード" class="reg-input" required>
+                 <input type="text" id="reg-role" placeholder="役職" class="reg-input" required>
+                 <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">登録</button>
+                 <p id="register-status" class="text-center h-4"></p>
+             </form>
+        </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_BASE_URL = 'https://punch.edps.uk';
+        let selectedAction = null;
+        const pages = document.querySelectorAll('.page');
+        const statusEl = document.getElementById('hub-status');
+        const showPage = (pageId) => pages.forEach(page => page.classList.toggle('hidden', page.id !== pageId));
+        
+        const api = async (endpoint, body) => {
+            try {
+                const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || `HTTPエラー`);
+                return data;
+            } catch (error) { return { status: "error", message: error.message }; }
+        };
+
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        const onScanSuccess = async (decodedText) => {
+            if (!selectedAction) { statusEl.textContent = '先にアクションを選択してください。'; return; }
+            try {
+                const qrData = JSON.parse(decodedText);
+                if (qrData.userId && qrData.ts) {
+                    html5QrCode.pause();
+                    statusEl.textContent = `${qrData.userId}を処理中...`;
+                    const payload = { ...qrData, action: selectedAction };
+                    const response = await api('/api/punch', payload);
+                    statusEl.textContent = response.message;
+                    setTimeout(() => {
+                        statusEl.textContent = 'QRコードをスキャンしてください';
+                        html5QrCode.resume();
+                    }, 3000);
+                }
+            } catch (e) { console.warn("Invalid QR Code"); }
+        };
+        
+        const startScanner = () => {
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices?.length) {
+                    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, () => {}).catch(() => {});
+                }
+            }).catch(() => { statusEl.textContent = "カメラが見つかりません"; });
+        };
+        startScanner();
+
+        document.querySelectorAll('.hub-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedAction = btn.dataset.action;
+                statusEl.textContent = `[${selectedAction}]を選択。QRをスキャンしてください。`;
+            });
+        });
+
+        document.querySelectorAll('.nav-btn').forEach(button => button.addEventListener('click', () => showPage(button.dataset.target)));
+        
+        document.getElementById('register-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('register-status');
+            status.textContent = '登録中...';
+            const data = {
+                userId: document.getElementById('reg-userid').value,
+                password: document.getElementById('reg-password').value,
+                fullName: document.getElementById('reg-fullname').value,
+                email: document.getElementById('reg-email').value,
+                role: document.getElementById('reg-role').value
+            };
+            const response = await api('/api/register', data);
+            status.textContent = response.message;
+            if (response.status === 'success') {
+                e.target.reset();
+                setTimeout(() => { showPage('hub-main-page'); status.textContent = ''; }, 2000);
+            }
+        });
+        showPage('hub-main-page');
+    });
+    </script>
+</body>
+</html>

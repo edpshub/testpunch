@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勤怠管理システム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif, 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .main-container { max-width: 500px; margin: 0 auto; }
+        .page { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div id="app-container" class="main-container bg-white min-h-screen shadow-lg">
+        <div id="login-page" class="page p-6">
+            <div class="flex flex-col items-center justify-center min-h-[80vh]">
+                <i class="fa-solid fa-clock-rotate-left text-5xl text-blue-600 mb-6"></i>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">おかえりなさい</h1>
+                <p class="text-gray-500 mb-8">アカウントにログインしてください</p>
+                <form id="login-form" class="w-full space-y-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="username" placeholder="ユーザーID" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="password" id="password" placeholder="パスワード" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-md">ログイン</button>
+                    <p id="login-error" class="text-red-500 text-sm text-center mt-2 hidden"></p>
+                </form>
+            </div>
+        </div>
+        <div id="user-dashboard-page" class="page hidden">
+            <header class="bg-white p-4 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+                <h1 class="text-xl font-bold text-blue-600">ダッシュボード</h1>
+                <button id="logout-btn" class="text-gray-500 hover:text-red-600"><i class="fa-solid fa-right-from-bracket text-xl"></i></button>
+            </header>
+            <main class="p-6 space-y-6">
+                <div class="bg-blue-50 p-4 rounded-lg shadow-sm">
+                    <p class="text-lg">ようこそ、<span id="user-name-display" class="font-bold"></span> さん</p>
+                    <p class="text-sm text-gray-600">役職: <span id="user-role-display"></span></p>
+                </div>
+                <div class="text-center p-6 bg-white rounded-lg shadow-md">
+                    <h2 class="text-lg font-semibold mb-4">あなたの打刻用QRコード</h2>
+                    <div id="qrcode" class="flex justify-center items-center"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button data-target="user-history-page" class="nav-btn bg-white p-4 rounded-lg shadow-sm text-center hover:bg-gray-50 transition">
+                        <i class="fa-solid fa-rectangle-list text-3xl text-blue-500 mb-2"></i><p class="font-semibold">勤怠履歴</p>
+                    </button>
+                    <button data-target="user-request-page" class="nav-btn bg-white p-4 rounded-lg shadow-sm text-center hover:bg-gray-50 transition">
+                        <i class="fa-solid fa-paper-plane text-3xl text-green-500 mb-2"></i><p class="font-semibold">各種申請</p>
+                    </button>
+                </div>
+            </main>
+        </div>
+        </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ★★★★★★★★★★★★★★★★★★★★★★★★
+            // API_BASE_URL の末尾のコロンを削除しました
+            // ★★★★★★★★★★★★★★★★★★★★★★★★
+            const API_BASE_URL = 'https://punch.edps.uk';
+            let currentUser = null;
+            const pages = document.querySelectorAll('.page');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+
+            const showPage = (pageId) => {
+                pages.forEach(page => page.classList.toggle('hidden', page.id !== pageId));
+                window.scrollTo(0, 0);
+            };
+            
+            // GETリクエストも扱えるように修正
+            const api = async (endpoint, method = 'GET', body = null) => {
+                try {
+                    const options = { method, headers: { 'Content-Type': 'application/json' }};
+                    if (body) options.body = JSON.stringify(body);
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.message || `HTTPエラー: ${response.status}`);
+                    return data;
+                } catch (error) {
+                    console.error('API Error:', error);
+                    alert(`エラー: ${error.message}`);
+                    return null;
+                }
+            };
+            
+            const initUserDashboard = (user) => {
+                currentUser = user;
+                document.getElementById('user-name-display').textContent = user.name;
+                document.getElementById('user-role-display').textContent = user.role;
+                const qrcodeContainer = document.getElementById('qrcode');
+                qrcodeContainer.innerHTML = '';
+                new QRCode(qrcodeContainer, { text: JSON.stringify({ userId: user.id }), width: 180, height: 180 });
+                showPage('user-dashboard-page');
+            };
+
+            loginForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginError.classList.add('hidden');
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                const response = await api('/api/login', 'POST', { username, password });
+                
+                if (response && response.status === 'success' && !response.user.isAdmin) {
+                    initUserDashboard(response.user);
+                } else {
+                    loginError.textContent = response ? response.message : 'IDまたはパスワードが正しくありません。';
+                    loginError.classList.remove('hidden');
+                }
+            });
+
+            document.getElementById('logout-btn')?.addEventListener('click', () => {
+                currentUser = null;
+                loginForm.reset();
+                showPage('login-page');
+            });
+            
+            showPage('login-page');
+        });
+    </script>
+</body>
+</html>
