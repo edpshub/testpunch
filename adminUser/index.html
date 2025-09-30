@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勤怠管理 - 管理者パネル</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif, 'Noto Sans JP', sans-serif; }
+        .page { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .table-auto th, .table-auto td { padding: 0.75rem; text-align: left; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app-container">
+        <!-- ======================= LOGIN PAGE ======================= -->
+        <div id="login-page" class="page flex items-center justify-center min-h-screen">
+            <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+                <div class="text-center">
+                    <i class="fa-solid fa-user-shield text-5xl text-blue-600"></i>
+                    <h1 class="mt-4 text-3xl font-bold text-gray-900">管理者パネル</h1>
+                    <p class="mt-2 text-sm text-gray-600">管理者アカウントでログインしてください</p>
+                </div>
+                <form id="login-form" class="space-y-6">
+                    <input type="text" id="username" placeholder="管理者ID" class="w-full px-4 py-2 border rounded-lg" required>
+                    <input type="password" id="password" placeholder="パスワード" class="w-full px-4 py-2 border rounded-lg" required>
+                    <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg">ログイン</button>
+                    <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- ======================= MAIN ADMIN INTERFACE ======================= -->
+        <div id="admin-main-interface" class="page hidden">
+            <div class="flex h-screen bg-gray-200">
+                <!-- Sidebar -->
+                <div class="w-64 bg-gray-800 text-white flex flex-col">
+                    <div class="px-8 py-6 text-2xl font-bold border-b border-gray-700">管理メニュー</div>
+                    <nav class="flex-1 px-4 py-4 space-y-2">
+                        <a href="#" data-target="admin-dashboard-page" class="admin-nav-link flex items-center px-4 py-2 rounded-lg bg-gray-900"><i class="fas fa-tachometer-alt mr-3"></i>ダッシュボード</a>
+                        <a href="#" data-target="admin-users-page" class="admin-nav-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users mr-3"></i>ユーザー管理</a>
+                        <a href="#" data-target="admin-timesheets-page" class="admin-nav-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700"><i class="fas fa-calendar-check mr-3"></i>勤怠データ</a>
+                        <a href="#" data-target="admin-requests-page" class="admin-nav-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700"><i class="fas fa-paper-plane mr-3"></i>申請管理</a>
+                    </nav>
+                    <div class="px-8 py-4 border-t border-gray-700">
+                        <button id="admin-logout-btn" class="w-full text-left flex items-center px-4 py-2 rounded-lg hover:bg-gray-700"><i class="fas fa-sign-out-alt mr-3"></i>ログアウト</button>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <main class="flex-1 p-6 overflow-y-auto">
+                    <div id="admin-dashboard-page" class="admin-page">
+                        <h1 class="text-3xl font-bold mb-6">ダッシュボード</h1>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="p-6 bg-white rounded-lg shadow-md"><h2 class="text-xl font-semibold">総ユーザー数</h2><p class="text-3xl mt-2">15</p></div>
+                            <div class="p-6 bg-white rounded-lg shadow-md"><h2 class="text-xl font-semibold">保留中の申請</h2><p class="text-3xl mt-2">3</p></div>
+                            <div class="p-6 bg-white rounded-lg shadow-md"><h2 class="text-xl font-semibold">本日の出勤者</h2><p class="text-3xl mt-2">12</p></div>
+                        </div>
+                    </div>
+                    <div id="admin-users-page" class="admin-page hidden">
+                         <h1 class="text-3xl font-bold mb-6">ユーザー管理</h1>
+                         <div class="bg-white p-6 rounded-lg shadow-md">
+                            <table class="w-full table-auto">
+                                <thead><tr class="bg-gray-100"><th>ユーザーID</th><th>氏名</th><th>メールアドレス</th><th>役職</th><th>操作</th></tr></thead>
+                                <tbody id="user-list-table"></tbody>
+                            </table>
+                         </div>
+                    </div>
+                    <div id="admin-timesheets-page" class="admin-page hidden">
+                         <h1 class="text-3xl font-bold mb-6">勤怠データ</h1>
+                         <div class="bg-white p-6 rounded-lg shadow-md">
+                             <!-- Filter controls here -->
+                             <p>全ユーザーの勤怠データを検索・編集する機能がここに入ります。</p>
+                         </div>
+                    </div>
+                    <div id="admin-requests-page" class="admin-page hidden">
+                         <h1 class="text-3xl font-bold mb-6">申請管理</h1>
+                         <div id="request-list" class="space-y-4">
+                             <!-- Requests will be loaded here -->
+                         </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_BASE_URL = 'https://punch.edps.uk:336';
+        let adminUser = null;
+
+        const showPage = (pageId) => {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            document.getElementById(pageId)?.classList.remove('hidden');
+        };
+
+        const showAdminContent = (contentId) => {
+            document.querySelectorAll('.admin-page').forEach(p => p.classList.add('hidden'));
+            document.getElementById(contentId)?.classList.remove('hidden');
+            document.querySelectorAll('.admin-nav-link').forEach(link => {
+                link.classList.toggle('bg-gray-900', link.dataset.target === contentId);
+            });
+        };
+
+        const api = async (endpoint, method = 'GET', body = null) => {
+            try {
+                const options = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) options.body = JSON.stringify(body);
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                alert(`APIエラー: ${error.message}`);
+                return null;
+            }
+        };
+
+        const loadUsers = async () => {
+            const res = await api('/api/admin/users');
+            const tableBody = document.getElementById('user-list-table');
+            if (res && res.users) {
+                tableBody.innerHTML = res.users.map(u => `
+                    <tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td>${u.role}</td>
+                    <td><button class="text-blue-500">編集</button></td></tr>
+                `).join('');
+            }
+        };
+        
+        const loadRequests = async () => {
+            const res = await api('/api/admin/requests');
+            const listEl = document.getElementById('request-list');
+            if (res && res.requests) {
+                listEl.innerHTML = res.requests.map(r => `
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <p><strong>申請者:</strong> ${r.userName} (${r.userId})</p>
+                    <p><strong>種類:</strong> ${r.type}</p>
+                    <p><strong>詳細:</strong> ${r.details}</p>
+                    <p><strong>ステータス:</strong> ${r.status}</p>
+                    ${r.status === 'pending' ? `<div class="mt-2"><button class="bg-green-500 text-white px-3 py-1 rounded">承認</button> <button class="bg-red-500 text-white px-3 py-1 rounded">拒否</button></div>` : ''}
+                </div>`).join('');
+            }
+        };
+
+        document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const res = await api('/login', 'POST', { username, password });
+
+            if (res && res.status === 'success' && res.user.isAdmin) {
+                adminUser = res.user;
+                showPage('admin-main-interface');
+                showAdminContent('admin-dashboard-page');
+            } else {
+                const loginError = document.getElementById('login-error');
+                loginError.textContent = 'IDまたはパスワードが正しくないか、管理者権限がありません。';
+                loginError.classList.remove('hidden');
+            }
+        });
+
+        document.querySelectorAll('.admin-nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = e.currentTarget.dataset.target;
+                showAdminContent(targetId);
+                if(targetId === 'admin-users-page') loadUsers();
+                if(targetId === 'admin-requests-page') loadRequests();
+            });
+        });
+
+        document.getElementById('admin-logout-btn')?.addEventListener('click', () => {
+            adminUser = null;
+            document.getElementById('login-form').reset();
+            showPage('login-page');
+        });
+
+        showPage('login-page');
+    });
+    </script>
+</body>
+</html>

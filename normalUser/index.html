@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勤怠管理システム</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Code generation library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif, 'Noto Sans JP', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .main-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        /* Page transition animation */
+        .page {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app-container" class="main-container bg-white min-h-screen shadow-lg">
+
+        <!-- =================================================================
+        LOGIN PAGE
+        ================================================================== -->
+        <div id="login-page" class="page p-6">
+            <div class="flex flex-col items-center justify-center min-h-[80vh]">
+                <i class="fa-solid fa-clock-rotate-left text-5xl text-blue-600 mb-6"></i>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">おかえりなさい</h1>
+                <p class="text-gray-500 mb-8">アカウントにログインしてください</p>
+                <form id="login-form" class="w-full space-y-4">
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="username" placeholder="ユーザーID" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+                    </div>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="password" id="password" placeholder="パスワード" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-md">
+                        ログイン
+                    </button>
+                    <p id="login-error" class="text-red-500 text-sm text-center mt-2 hidden"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- =================================================================
+        USER DASHBOARD PAGE
+        ================================================================== -->
+        <div id="user-dashboard-page" class="page hidden">
+            <header class="bg-white p-4 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+                <h1 class="text-xl font-bold text-blue-600">ダッシュボード</h1>
+                <button id="logout-btn" class="text-gray-500 hover:text-red-600"><i class="fa-solid fa-right-from-bracket text-xl"></i></button>
+            </header>
+            <main class="p-6 space-y-6">
+                <!-- User Info -->
+                <div class="bg-blue-50 p-4 rounded-lg shadow-sm">
+                    <p class="text-lg">ようこそ、<span id="user-name-display" class="font-bold"></span> さん</p>
+                    <p class="text-sm text-gray-600">役職: <span id="user-role-display"></span></p>
+                </div>
+                
+                <!-- QR Code Display -->
+                <div class="text-center p-6 bg-white rounded-lg shadow-md">
+                    <h2 class="text-lg font-semibold mb-4">あなたの打刻用QRコード</h2>
+                    <div id="qrcode" class="flex justify-center items-center"></div>
+                </div>
+
+                <!-- Action Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button data-target="user-history-page" class="nav-btn bg-white p-4 rounded-lg shadow-sm text-center hover:bg-gray-50 transition">
+                        <i class="fa-solid fa-rectangle-list text-3xl text-blue-500 mb-2"></i>
+                        <p class="font-semibold">勤怠履歴</p>
+                    </button>
+                    <button data-target="user-request-page" class="nav-btn bg-white p-4 rounded-lg shadow-sm text-center hover:bg-gray-50 transition">
+                        <i class="fa-solid fa-paper-plane text-3xl text-green-500 mb-2"></i>
+                        <p class="font-semibold">各種申請</p>
+                    </button>
+                </div>
+            </main>
+        </div>
+
+        <!-- =================================================================
+        USER HISTORY PAGE
+        ================================================================== -->
+        <div id="user-history-page" class="page hidden">
+            <header class="bg-white p-4 shadow-sm sticky top-0 z-10 flex items-center">
+                <button data-target="user-dashboard-page" class="nav-btn text-blue-600 mr-4"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                <h1 class="text-xl font-bold text-blue-600">勤怠履歴</h1>
+            </header>
+            <main class="p-6">
+                <div id="history-list" class="space-y-3">
+                    <p class="text-center text-gray-500">履歴を読み込んでいます...</p>
+                </div>
+            </main>
+        </div>
+
+        <!-- =================================================================
+        USER REQUEST PAGE
+        ================================================================== -->
+        <div id="user-request-page" class="page hidden">
+            <header class="bg-white p-4 shadow-sm sticky top-0 z-10 flex items-center">
+                <button data-target="user-dashboard-page" class="nav-btn text-blue-600 mr-4"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+                <h1 class="text-xl font-bold text-blue-600">新規申請・報告</h1>
+            </header>
+            <main class="p-6">
+                <form id="request-form" class="space-y-4">
+                    <div>
+                        <label for="request-type" class="block text-sm font-medium text-gray-700">申請種別</label>
+                        <select id="request-type" name="request-type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" required>
+                            <option value="direct_go_advance">直行事前申請</option>
+                            <option value="direct_go_report">直行報告</option>
+                            <option value="direct_return_advance">直帰事前申請</option>
+                            <option value="direct_return_report">直帰報告</option>
+                            <option value="missed_punch">打刻漏れ届</option>
+                            <option value="overtime">時間外残業申請</option>
+                            <option value="delay">遅延届</option>
+                            <option value="shift_change">シフト勤務申請</option>
+                            <option value="holiday_work">休日出勤申請</option>
+                            <option value="paid_leave">有給休暇届</option>
+                            <option value="late_arrival">遅刻届</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="request-approver" class="block text-sm font-medium text-gray-700">承認者</label>
+                        <select id="request-approver" name="request-approver" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" required>
+                            <option>読み込み中...</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label for="request-details" class="block text-sm font-medium text-gray-700">詳細</label>
+                        <textarea id="request-details" name="request-details" rows="4" class="mt-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md" placeholder="日付、理由などを具体的に入力してください。" required></textarea>
+                    </div>
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        申請を送信
+                    </button>
+                    <p id="request-status" class="text-green-600 text-center mt-2"></p>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <!-- Main Application Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_BASE_URL = 'https://punch.edps.uk:336';
+            let currentUser = null;
+
+            const pages = document.querySelectorAll('.page');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+
+            const showPage = (pageId) => {
+                pages.forEach(page => {
+                    page.classList.toggle('hidden', page.id !== pageId);
+                });
+                window.scrollTo(0, 0);
+            };
+            
+            const api = async (endpoint, method = 'GET', body = null) => {
+                try {
+                    const options = {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                    };
+                    if (body) options.body = JSON.stringify(body);
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                    if (!response.ok) throw new Error(`HTTPエラー！ ステータス: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    console.error('APIエラー:', error);
+                    alert(`エラーが発生しました: ${error.message}。サーバー接続を確認して、再度お試しください。`);
+                    return null;
+                }
+            };
+            
+            const initUserDashboard = (user) => {
+                currentUser = user;
+                document.getElementById('user-name-display').textContent = user.name;
+                document.getElementById('user-role-display').textContent = user.role;
+                const qrcodeContainer = document.getElementById('qrcode');
+                qrcodeContainer.innerHTML = '';
+                new QRCode(qrcodeContainer, {
+                    text: JSON.stringify({ userId: user.id }),
+                    width: 180, height: 180,
+                });
+                showPage('user-dashboard-page');
+            };
+
+            const initUserHistory = async () => {
+                const historyList = document.getElementById('history-list');
+                historyList.innerHTML = '<p class="text-center text-gray-500">履歴を読み込んでいます...</p>';
+                const data = await api(`/api/timesheets/${currentUser.id}`);
+                if (data && data.timesheet) {
+                     historyList.innerHTML = data.timesheet.length > 0 ? data.timesheet.map(item => `
+                        <div class="bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold">${{'check-in': '出勤', 'check-out': '退勤', 'late': '遅刻'}[item.type] || item.type} - ${new Date(item.timestamp).toLocaleDateString('ja-JP')}</p>
+                                <p class="text-sm text-gray-500">時刻: ${new Date(item.timestamp).toLocaleTimeString('ja-JP')}</p>
+                            </div>
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                完了
+                            </span>
+                        </div>
+                    `).join('') : '<p class="text-center text-gray-500">勤怠履歴はありません。</p>';
+                } else {
+                    historyList.innerHTML = '<p class="text-center text-red-500">履歴の読み込みに失敗しました。</p>';
+                }
+            };
+
+            const initNewRequest = async () => {
+                 const approverSelect = document.getElementById('request-approver');
+                 // In a real app, this would fetch managers/supervisors
+                 const approvers = [{id: 'admin01', name: 'ジェーン・スミス (管理者)'}];
+                 approverSelect.innerHTML = approvers.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            };
+
+            document.querySelectorAll('.nav-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetPageId = button.dataset.target;
+                    if (targetPageId) {
+                        showPage(targetPageId);
+                        if (targetPageId === 'user-history-page') initUserHistory();
+                        if (targetPageId === 'user-request-page') initNewRequest();
+                    }
+                });
+            });
+
+            loginForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginError.classList.add('hidden');
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                const response = await api('/login', 'POST', { username, password });
+                if (response && response.status === 'success' && !response.user.isAdmin) {
+                    initUserDashboard(response.user);
+                } else {
+                    loginError.textContent = 'IDまたはパスワードが正しくありません。';
+                    loginError.classList.remove('hidden');
+                }
+            });
+
+            document.getElementById('request-form')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const statusEl = document.getElementById('request-status');
+                statusEl.textContent = '位置情報を取得中...';
+                
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const { latitude, longitude } = position.coords;
+                        const formData = new FormData(e.target);
+                        const data = {
+                            userId: currentUser.id,
+                            requestType: formData.get('request-type'),
+                            approverId: formData.get('request-approver'),
+                            details: formData.get('request-details'),
+                            location: { lat: latitude, lon: longitude }
+                        };
+                        
+                        const response = await api('/api/requests', 'POST', data);
+                        if (response && response.status === 'success') {
+                            statusEl.textContent = '申請が正常に送信されました！';
+                            e.target.reset();
+                            setTimeout(() => { 
+                                statusEl.textContent = '';
+                                showPage('user-dashboard-page');
+                            }, 2000);
+                        } else {
+                            statusEl.textContent = '申請の送信に失敗しました。';
+                        }
+                    },
+                    (error) => {
+                        console.warn(`位置情報を取得できませんでした: ${error.message}`);
+                        alert('位置情報を取得できませんでした。リクエストを送信するには、位置情報サービスを有効にしてください。');
+                        statusEl.textContent = '';
+                    }
+                );
+            });
+
+            document.getElementById('logout-btn')?.addEventListener('click', () => {
+                currentUser = null;
+                loginForm.reset();
+                showPage('login-page');
+            });
+            
+            showPage('login-page');
+        });
+    </script>
+</body>
+</html>
